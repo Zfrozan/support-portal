@@ -9,7 +9,7 @@ heading.textContent = "Saved requests";
 const list = document.createElement("ul");
 message.after(heading, list);
 
-const storageKey = "northstar-requests";
+let store;
 let requests = [];
 
 function displayRequests() {
@@ -23,15 +23,19 @@ function displayRequests() {
     const item = document.createElement("li");
     item.textContent = request.name + " — " + request.email
       + " — " + request.issue;
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.setAttribute("aria-label", "Delete request from " + request.name);
+    deleteButton.addEventListener("click", () => deleteRequest(request.id));
+    item.append(" ", deleteButton);
     list.append(item);
   });
 }
 
 try {
-  requests = JSON.parse(localStorage.getItem(storageKey) || "[]");
-  if (!Array.isArray(requests)) {
-    throw new Error("Invalid saved data");
-  }
+  store = createRequestStore(localStorage);
+  requests = store.load();
   button.disabled = false;
 } catch (error) {
   message.textContent = "Saved requests could not be loaded. Saving is unavailable.";
@@ -50,11 +54,8 @@ form.addEventListener("submit", function (event) {
     return;
   }
 
-  const updatedRequests = requests.concat({ name, email, issue });
-
   try {
-    localStorage.setItem(storageKey, JSON.stringify(updatedRequests));
-    requests = updatedRequests;
+    requests = store.add({ name, email, issue });
     displayRequests();
     form.reset();
     message.textContent = "Request saved in this browser.";
@@ -62,3 +63,20 @@ form.addEventListener("submit", function (event) {
     message.textContent = "Could not save your request. Your form has been kept.";
   }
 });
+
+function deleteRequest(id) {
+  if (!window.confirm("Delete this saved request?")) {
+    return;
+  }
+
+  try {
+    const result = store.remove(id);
+    requests = result.requests;
+    displayRequests();
+    message.textContent = result.removed
+      ? "Request deleted."
+      : "This request is no longer saved.";
+  } catch (error) {
+    message.textContent = "Could not delete your request. Please try again.";
+  }
+}
